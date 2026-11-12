@@ -33,6 +33,14 @@ jobs:
           ssh-key: ${{ secrets.KT_DEPLOY_KEY }}
           persist-credentials: false
           path: src
+      - uses: actions/checkout@v4
+        if: inputs.job == 'apk'
+        with:
+          repository: Mulhimfy/katib
+          ref: models
+          ssh-key: ${{ secrets.KT_DEPLOY_KEY }}
+          persist-credentials: false
+          path: models
       - name: work
         env:
           JOB: ${{ inputs.job }}
