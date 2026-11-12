@@ -1,0 +1,65 @@
+name: run
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        required: true
+      ref:
+        default: main
+      args:
+        default: ''
+      shards:
+        default: '[0]'
+      runner:
+        default: ubuntu-latest
+      tag:
+        default: t
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJson(inputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Mulhimfy/katib
+          ref: ${{ inputs.ref }}
+          ssh-key: ${{ secrets.KT_DEPLOY_KEY }}
+          persist-credentials: false
+          path: src
+      - name: work
+        env:
+          JOB: ${{ inputs.job }}
+          ARGS: ${{ inputs.args }}
+          SHARD: ${{ matrix.shard }}
+          KT_KEYSTORE_B64: ${{ inputs.job == 'apk' && secrets.KT_KEYSTORE_B64 || '' }}
+          KT_KEYSTORE_PASSWORD: ${{ inputs.job == 'apk' && secrets.KT_KEYSTORE_PASSWORD || '' }}
+        run: |
+          mkdir -p out
+          set +e
+          bash src/ci/run.sh "$JOB" "$SHARD" "$ARGS" > out/log.txt 2>&1
+          echo $? > out/rc
+          echo "exit $(cat out/rc)"
+      - name: seal
+        if: always()
+        env:
+          KEY: ${{ secrets.KT_ARTIFACT_KEY }}
+        run: |
+          test -n "$KEY"
+          tar -C out -czf - . | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -out sealed.bin -pass env:KEY
+          rm -rf out/*.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ inputs.tag }}-${{ matrix.shard }}
+          path: sealed.bin
+          retention-days: 7
+          if-no-files-found: error
+      - name: result
+        run: test "$(cat out/rc)" = 0
