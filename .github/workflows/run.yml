@@ -49,7 +49,7 @@ jobs:
           KT_KEYSTORE_B64: ${{ inputs.job == 'apk' && secrets.KT_KEYSTORE_B64 || '' }}
           KT_KEYSTORE_PASSWORD: ${{ inputs.job == 'apk' && secrets.KT_KEYSTORE_PASSWORD || '' }}
           KT_MODELS_KEY: ${{ inputs.job == 'models' && secrets.KT_MODELS_KEY || '' }}
-          KT_KAGGLE_TOKEN: ${{ inputs.job == 'models' && secrets.KT_KAGGLE_TOKEN || '' }}
+          KT_KAGGLE_TOKEN: ${{ (inputs.job == 'models' || inputs.job == 'prep') && secrets.KT_KAGGLE_TOKEN || '' }}
         run: |
           mkdir -p out
           set +e
